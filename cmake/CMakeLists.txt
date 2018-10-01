@@ -97,28 +97,32 @@ if(NOT HAVE_S_ISCHR OR NOT HAVE_S_ISFIFO OR NOT HAVE_S_ISSOCK)
 endif()
 
 configure_file(config.h.in
-    "${_ROOT}/config.h"
+    "${CMAKE_CURRENT_BINARY_DIR}/config.h"
     @ONLY)
 
 configure_file("${_ROOT}/version.c.in"
-    "${_ROOT}/version.c"
+    "${CMAKE_CURRENT_BINARY_DIR}/version.c"
     @ONLY)
-set_property(SOURCE "${_ROOT}/version.c" APPEND PROPERTY COMPILE_DEFINITIONS
+set_property(SOURCE "${CMAKE_CURRENT_BINARY_DIR}/version.c" APPEND PROPERTY COMPILE_DEFINITIONS
     BRANCH=""
     VERSION="${${PROJECT_NAME}_VERSION}")
 
 configure_file("${_ROOT}/mkdio.h.in"
-    "${_ROOT}/mkdio.h"
+    "${CMAKE_CURRENT_BINARY_DIR}/mkdio.h"
     @ONLY)
-
-include_directories("${_ROOT}")
 
 add_executable(mktags
     "${_ROOT}/mktags.c")
 
-add_custom_command(OUTPUT "${_ROOT}/blocktags"
-    COMMAND mktags > blocktags
+set(BLOCKTAGS_FILE "${CMAKE_CURRENT_BINARY_DIR}/blocktags")
+add_custom_command(OUTPUT "${BLOCKTAGS_FILE}"
+    COMMAND mktags > ${BLOCKTAGS_FILE}
     WORKING_DIRECTORY "${_ROOT}")
+
+target_include_directories(mktags
+    PRIVATE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+)
 
 add_library(libmarkdown
     "${_ROOT}/mkdio.c"
@@ -127,7 +131,7 @@ add_library(libmarkdown
     "${_ROOT}/generate.c"
     "${_ROOT}/resource.c"
     "${_ROOT}/docheader.c"
-    "${_ROOT}/version.c"
+    "${CMAKE_CURRENT_BINARY_DIR}/version.c"
     "${_ROOT}/toc.c"
     "${_ROOT}/css.c"
     "${_ROOT}/xml.c"
@@ -137,12 +141,20 @@ add_library(libmarkdown
     "${_ROOT}/emmatch.c"
     "${_ROOT}/github_flavoured.c"
     "${_ROOT}/setup.c"
-    "${_ROOT}/blocktags" "${_ROOT}/tags.c"
+    "${BLOCKTAGS_FILE}"
+    "${_ROOT}/tags.c"
     "${_ROOT}/html5.c"
     "${_ROOT}/flags.c")
 
 set_target_properties(libmarkdown PROPERTIES
     OUTPUT_NAME markdown)
+
+target_include_directories(libmarkdown
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    PRIVATE
+        $<BUILD_INTERFACE:${_ROOT}>
+)
 
 if(NOT ${PROJECT_NAME}_ONLY_LIBRARY)
     add_library(common OBJECT
@@ -177,7 +189,7 @@ if(${PROJECT_NAME}_MAKE_INSTALL)
             "${CMAKE_INSTALL_LIBDIR}/cmake/${_PACKAGE_NAME}"
             CACHE STRING "CMake packages")
     endif()
-    install(FILES "${_ROOT}/mkdio.h"
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/mkdio.h"
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
     target_include_directories(libmarkdown INTERFACE
       $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
